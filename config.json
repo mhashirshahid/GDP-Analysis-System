@@ -1,0 +1,14 @@
+{
+  "app_mode": "script",
+  "data_file": "data/gdp_data.csv",
+  "filters": {
+    "region": "Asia",
+    "year": 2018,
+    "country": null
+  },
+  "operation": "sum", 
+  "plot": {
+    "show_plot": true,
+    "save_path": "outputs/dashboard.png"  
+  }
+}
