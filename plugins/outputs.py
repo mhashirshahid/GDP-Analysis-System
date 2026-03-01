@@ -33,31 +33,53 @@ _SEP = "─" * 72
 
 
 def _apply_theme(fig: Figure) -> Figure:
-    pass
+    rc = {
+        "figure.facecolor": _P["bg"],  "axes.facecolor":  _P["surface"],
+        "axes.edgecolor":   _P["border"], "axes.labelcolor": _P["text"],
+        "xtick.color":      _P["subtext"], "ytick.color":   _P["subtext"],
+        "text.color":       _P["text"],   "grid.color":     _P["border"],
+        "grid.linestyle":   "--",          "grid.linewidth": 0.5,
+        "font.family":      "DejaVu Sans",
+        "axes.spines.top":  False,         "axes.spines.right": False,
+    }
+    list(map(lambda kv: plt.rcParams.update({kv[0]: kv[1]}), rc.items()))
+    fig.set_facecolor(_P["bg"])
+    return fig
 
 
 def _meta(records: list[dict], key: str, default: Any = None) -> Any:
-    pass
+    return records[0].get(key, default) if records else default
 
 
 def _strip(records: list[dict]) -> list[dict]:
-    pass
+    return list(map(lambda r: dict(filter(lambda kv: not kv[0].startswith("_"), r.items())), records))
 
 
 def _fmt_gdp(v: float) -> str:
-    pass
+    a = abs(v)
+    if a >= 1e12: return f"${v/1e12:.2f} T"
+    if a >= 1e9:  return f"${v/1e9:.2f} B"
+    if a >= 1e6:  return f"${v/1e6:.2f} M"
+    return f"${v:,.0f}"
 
 
 def _bar_color(v: float) -> str:
-    pass
+    return _P["positive"] if v >= 0 else _P["negative"]
 
 
 def _annotate_hbars(ax, bars, fmt) -> None:
-    pass
+    def _one(bar):
+        w = bar.get_width()
+        ax.text(w + abs(w) * 0.01, bar.get_y() + bar.get_height() / 2,
+                fmt(w), va="center", ha="left", color=_P["text"], fontsize=8)
+    list(map(_one, bars))
 
 
 def _decorate(ax, title: str, xlabel="", ylabel="") -> None:
-    pass
+    ax.set_title(title, color=_P["text"], fontsize=13, fontweight="bold", pad=14)
+    ax.set_xlabel(xlabel, color=_P["subtext"], fontsize=9)
+    ax.set_ylabel(ylabel, color=_P["subtext"], fontsize=9)
+    ax.grid(True, axis="x", alpha=0.3)
 
 
 class ConsoleWriter:
