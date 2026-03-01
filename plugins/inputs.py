@@ -50,15 +50,26 @@ def _validate_records(records: list[dict]) -> list[dict]:
 
 
 def _patch_json(text: str) -> str:
-    pass
+    return reduce(lambda t, sub: sub[0].sub(sub[1], t),
+                  [(_RE_NAN, "null"), (_RE_GARBAGE, "null")],
+                  text)
 
 
 def _parse_json(text: str) -> list[dict]:
-    pass
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"JSON parse error at line {exc.lineno}: {exc.msg}") from exc
+    if not isinstance(result, list):
+        raise ValueError(f"Expected JSON array, got {type(result).__name__}.")
+    return result
 
 
 def _parse_csv(text: str) -> list[dict]:
-    pass
+    reader = csv.DictReader(io.StringIO(text))
+    if reader.fieldnames is None:
+        raise ValueError("CSV file is empty or missing a header row.")
+    return list(map(dict, reader))
 
 
 class JSONReader:
