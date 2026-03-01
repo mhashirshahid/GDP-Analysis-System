@@ -1,6 +1,6 @@
 from typing import List,Any
 from core.contracts import DataSink
-
+from itertools import chain
 class TransformationEngine:
     def __init__ (self, sink: DataSink, config: dict):
         self.sink = sink
@@ -129,8 +129,11 @@ class TransformationEngine:
             years = range(self.year_start, self.year_end + 1)
 
             all_gdp_values = list(filter(
-            lambda v: v is not None,
-            [row.get(str(yr)) for row in rows for yr in years]
+                lambda v: v is not None,
+                chain.from_iterable(map(
+                lambda row: map(lambda yr: row.get(str(yr)), years),
+                rows
+                ))
             ))
 
             if not all_gdp_values:
@@ -279,7 +282,59 @@ class TransformationEngine:
 
         return list(filter(None, map(check_decline, countries)))
 
+    def _continent_contribution(self, data: List[dict]) -> List[dict]:
+        years = list(range(self.year_start, self.year_end + 1))
+
+        continents = list(set(map(
+        lambda row: row.get('Continent'),
+        data
+        )))
+
+        def contribution_for_year(year):
+            year_gdp_values = list(filter(
+            lambda v: v is not None,
+            map(lambda row: row.get(str(year)), data)
+            ))
+
+            if not year_gdp_values:
+                return None
+
+            world_gdp = sum(year_gdp_values)
+
+            if world_gdp == 0:
+                return None
+
+            def continent_share(continent):
+                cont_rows = list(filter(
+                lambda r: r.get('Continent') == continent,
+                data
+            ))
+
+                cont_gdp_values = list(filter(
+                lambda v: v is not None,
+                map(lambda r: r.get(str(year)), cont_rows)
+            ))
+
+                if not cont_gdp_values:
+                    return None
+
+                cont_gdp  = sum(cont_gdp_values)
+                share_pct = (cont_gdp / world_gdp) * 100
+
+                return {
+                '_chart_type': 'continent_contribution',
+                '_title': f'Continent Contribution to Global GDP ({self.year_start}–{self.year_end})',
+                'year':      year,
+                'continent': continent,
+                'share_pct': round(share_pct, 2)
+                }
+
+            return list(filter(None, map(continent_share, continents)))
+
+        nested = list(filter(None, map(contribution_for_year, years)))
     
+        return list(filter(None, chain.from_iterable(nested)))
+        
     
     
     
