@@ -196,15 +196,27 @@ def _validate_config(cfg: dict) -> dict:
 
 
 def _build_sink(cfg: dict) -> Any:
-    pass
+    key = cfg["output_driver"]
+    cls = OUTPUT_DRIVERS[key]
+    plot = cfg.get("plot", {})
+    kwargs = {"chart": {"show_plot": plot.get("show_plot", False),
+                        "save_path": plot.get("save_path", None)},
+              "console": {}}.get(key, {})
+    sink = cls(**kwargs)
+    log.info("Sink: %s", type(sink).__name__)
+    return sink
 
 
 def _build_engine(cfg: dict, sink: Any) -> Any:
-    pass
+    engine = TransformationEngine(sink=sink, config=cfg)
+    log.info("Engine: %s", type(engine).__name__)
+    return engine
 
 
 def _build_reader(cfg: dict, engine: Any) -> Any:
-    pass
+    reader = INPUT_DRIVERS[cfg["input_driver"]](filepath=cfg["data_file"], service=engine)
+    log.info("Reader: %s", type(reader).__name__)
+    return reader
 
 
 def bootstrap() -> None:
