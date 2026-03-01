@@ -1,65 +1,75 @@
+from __future__ import annotations
+
 import json
-import sys
+import logging
 import os
+import sys
+from functools import reduce
+from pathlib import Path
+from typing import Any
 
-from modules import loader, processor, visualizer
-from GUI import app 
+from core.engine import TransformationEngine
+from plugins.inputs  import CSVReader, JSONReader
+from plugins.outputs import ConsoleWriter, GraphicsChartWriter
 
-def load_config(file_path="config.json"):
-    """Safely loads the configuration file."""
-    if not os.path.exists(file_path):
-        print(f"Error: Config file '{file_path}' not found.")
-        sys.exit(1)
-    with open(file_path, "r") as f:
-        return json.load(f)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+)
+log = logging.getLogger(__name__)
 
-def main():
-    print("Starting GDP Analysis System...")
+INPUT_DRIVERS: dict[str, type] = {
+    "json": JSONReader,
+    "csv":  CSVReader,
+}
 
-    config = load_config()
+OUTPUT_DRIVERS: dict[str, type] = {
+    "console": ConsoleWriter,
+    "chart":   GraphicsChartWriter,
+}
 
-    data_path = config.get('data_file', 'data/gdp_data.csv')
-    app_mode = config.get('app_mode', 'gui')
+_CONFIG_PATH   = Path("config.json")
+_VALID_YEARS   = range(1960, 2025)
+_VALID_CONTS   = {"Africa", "Asia", "Europe", "North America",
+                  "Oceania", "South America", "Global"}
 
-    #CHECK MODE: GUI vs SCRIPT
-    if app_mode == 'gui':
-        print(f"... Launching Interactive Dashboard (GUI)")
-        print(f"... Data Source: {data_path}")
 
-        root = app.GDPApp(config)
-        root.mainloop()
-        
-    else:
-        print("...Running in Batch Script Mode (No Window)")
-        print(f"...Loading Data from: {data_path}")
-        
-        try:
-            raw_data = loader.load_data(data_path)
-        except Exception as e:
-            print(f"Critical Error in Loader: {e}")
-            sys.exit(1)
+def _yr(c):  return c.get("filters", {}).get("year_range", [None, None])
+def _f(c):   return c.get("filters", {})
+def _p(c):   return c.get("plot", {})
 
-        if not raw_data:
-            print("Error: Data loaded is empty. Check your CSV path.")
-            sys.exit(1)
 
-        target_region = config['filters']['region']
-        target_year = config['filters']['year']
-        
-        print(f"...Filtering for Region: '{target_region}' | Year: {target_year}")
+class ConfigError(Exception):
+    pass
 
-        comp_data = processor.filter_data(raw_data, region=target_region, year=target_year)
 
-        trend_data = []
-        if comp_data:
-            largest_country = sorted(comp_data, key=lambda x: x['GDP'], reverse=True)[0]['Country']
-            print(f"...Fetching historical trend for: {largest_country}")
-            trend_data = processor.filter_data(raw_data, country=largest_country)
-        else:
-            print(f"Warning: No data found for {target_region} in {target_year}")
+def _load_config(path: Path) -> dict:
+    pass
 
-        visualizer.create_dashboard(comp_data, trend_data, config)
-        print("Analysis saved to output folder.")
+
+def _validate_config(cfg: dict) -> dict:
+    pass
+
+
+def _build_sink(cfg: dict) -> Any:
+    pass
+
+
+def _build_engine(cfg: dict, sink: Any) -> Any:
+    pass
+
+
+def _build_reader(cfg: dict, engine: Any) -> Any:
+    pass
+
+
+def bootstrap() -> None:
+    pass
+
+
+def main() -> None:
+    pass
+
 
 if __name__ == "__main__":
     main()
