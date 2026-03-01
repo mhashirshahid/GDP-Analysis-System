@@ -220,11 +220,47 @@ def _build_reader(cfg: dict, engine: Any) -> Any:
 
 
 def bootstrap() -> None:
-    pass
+    log.info("━━━  GDP Analysis System — Phase 2  ━━━")
+
+    def _load(_):      return _load_config(_CONFIG_PATH)
+    def _validate(cfg): return _validate_config(cfg)
+    def _wire(cfg):
+        sink   = _build_sink(cfg)
+        engine = _build_engine(cfg, sink)
+        reader = _build_reader(cfg, engine)
+        return {**cfg, "_sink": sink, "_engine": engine, "_reader": reader}
+    def _run(ctx):
+        log.info("%s → Engine → %s | filters: %s",
+                 type(ctx["_reader"]).__name__,
+                 type(ctx["_sink"]).__name__,
+                 ctx.get("filters", {}))
+        ctx["_reader"].run()
+        return ctx
+
+    reduce(lambda acc, fn: fn(acc), [_load, _validate, _wire, _run], None)
+    log.info("━━━  Done  ━━━")
 
 
 def main() -> None:
-    pass
+    debug = "--debug" in sys.argv
+    try:
+        bootstrap()
+    except ConfigError as exc:
+        print(f"\n[CONFIG ERROR]\n{exc}\n", file=sys.stderr)
+        if debug: raise
+        sys.exit(1)
+    except RuntimeError as exc:
+        print(f"\n[RUNTIME ERROR]\n{exc}\n", file=sys.stderr)
+        if debug: raise
+        sys.exit(2)
+    except KeyboardInterrupt:
+        print("\n[INTERRUPTED]", file=sys.stderr)
+        sys.exit(130)
+    except Exception as exc:
+        print(f"\n[UNEXPECTED ERROR] {type(exc).__name__}: {exc}", file=sys.stderr)
+        print("Run with --debug for full traceback.", file=sys.stderr)
+        if debug: raise
+        sys.exit(3)
 
 
 if __name__ == "__main__":
