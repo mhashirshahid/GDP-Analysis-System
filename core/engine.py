@@ -30,3 +30,39 @@ class TransformationEngine:
             isinstance(row.get('Continent'), str)
         )
         return list(filter(is_valid, raw_data))
+    
+    def _top_10(self, data: List[dict]) -> List[dict]:
+        filtered = list(filter(
+                    lambda row: row.get('Continent') == self.continent and row.get(str(self.year)) is not None,
+                    data
+        ))
+        to_record = lambda row: {
+            '_chart_type': 'top_bottom_gdp',
+            '_title': f'Top 10 Countries by GDP - {self.continent} ({self.year})',
+            'country':     row.get('Country Name'),
+            'gdp':         row.get(str(self.year)),
+            'rank_label':  'TOP'
+    }
+        records = list(map(to_record, filtered))
+        sorted_records = sorted(records, key=lambda x: x['gdp'], reverse=True)
+        return sorted_records[:10]
+    
+    def _bottom_10(self, data: List[dict]) -> List[dict]:
+        filtered = list(filter(
+                    lambda row: row.get('Continent') == self.continent and row.get(str(self.year)) is not None,
+                    data
+            ))
+        to_record = lambda row: {
+            '_chart_type': 'top_bottom_gdp',
+            '_title': f'Bottom 10 Countries by GDP — {self.continent} ({self.year})',
+            'country':    row.get('Country Name'),
+            'gdp':        row.get(str(self.year)),
+            'rank_label': 'BOTTOM'
+        }
+
+        records = list(map(to_record, filtered))
+        sorted_records = sorted(records, key=lambda x: x['gdp'])
+        return sorted_records[:10]
+    
+    
+    
