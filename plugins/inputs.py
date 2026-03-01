@@ -19,15 +19,34 @@ _BAD_VALS  = frozenset({"", "nan", "none", "#@$!\\", "null", "n/a"})
 
 
 def _coerce_value(value: Any) -> float | None:
-    pass
+    if value is None:
+        return None
+    if str(value).strip().lower() in _BAD_VALS:
+        return None
+    try:
+        v = float(value)
+        return None if v != v else v    # catches float NaN
+    except (ValueError, TypeError):
+        return None
 
 
 def _normalize_record(raw: dict) -> dict:
-    pass
+    def _pair(kv: tuple) -> tuple:
+        k, v = str(kv[0]).strip(), kv[1]
+        if k.lower() in _META_KEYS:
+            return k, (str(v).strip() if v not in (None, "") else None)
+        if k.isdigit():
+            return k, _coerce_value(v)
+        return k, v
+    return dict(map(_pair, raw.items()))
 
 
 def _validate_records(records: list[dict]) -> list[dict]:
-    pass
+    valid = list(filter(lambda r: r.get("Country Name") or r.get("Continent"), records))
+    dropped = len(records) - len(valid)
+    if dropped:
+        log.warning("Dropped %d record(s) missing Country Name and Continent.", dropped)
+    return valid
 
 
 def _patch_json(text: str) -> str:
