@@ -231,12 +231,104 @@ _CHART_DISPATCH = {
 
 class ConsoleWriter:
     def write(self, records: list[dict]) -> None:
-        pass
+        if not records:
+            return
+        chart_type = _meta(records, "_chart_type", "default")
+        title      = _meta(records, "_title", "RESULT")
+        clean      = _strip(records)
+
+        _BODY = {
+            "top_bottom_gdp":         self._fmt_top_bottom,
+            "gdp_growth_rate":        self._fmt_growth_rate,
+            "avg_gdp_by_continent":   self._fmt_avg_continent,
+            "global_gdp_trend":       self._fmt_global_trend,
+            "fastest_continent":      self._fmt_fastest,
+            "consistent_decline":     self._fmt_decline,
+            "continent_contribution": self._fmt_contribution,
+        }
+        renderer = _BODY.get(chart_type, self._fmt_generic)
+
+        print(f"\n{_SEP}\n  {title}\n{_SEP}")
+        list(map(renderer, clean))
+        print(f"{_SEP}\n  {len(clean)} record(s)\n{_SEP}\n")
+
+    @staticmethod
+    def _fmt_top_bottom(r):
+        print(f"  [{r.get('rank_label',''):6s}]  {r.get('country','?'):<40s}  {_fmt_gdp(float(r.get('gdp') or 0)):>14s}")
+
+    @staticmethod
+    def _fmt_growth_rate(r):
+        rate = float(r.get("growth_rate") or 0)
+        print(f"  {'▲' if rate >= 0 else '▼'}  {r.get('country','?'):<35s}  {rate:+.2f}%")
+
+    @staticmethod
+    def _fmt_avg_continent(r):
+        print(f"  {r.get('continent','?'):<25s}  {_fmt_gdp(float(r.get('avg_gdp') or 0)):>14s}")
+
+    @staticmethod
+    def _fmt_global_trend(r):
+        print(f"  {r.get('year','?')}  →  {_fmt_gdp(float(r.get('total_gdp') or 0)):>16s}")
+
+    @staticmethod
+    def _fmt_fastest(r):
+        star = " ★ FASTEST" if r.get("is_fastest") else ""
+        print(f"  {r.get('continent','?'):<25s}  {float(r.get('growth_pct') or 0):+.2f}%{star}")
+
+    @staticmethod
+    def _fmt_decline(r):
+        print(f"  {r.get('country','?'):<35s}  {float(r.get('decline_pct') or 0):.1f}% over {r.get('decline_years','?')} yr(s)")
+
+    @staticmethod
+    def _fmt_contribution(r):
+        pct = float(r.get("share_pct") or 0)
+        print(f"  {r.get('year','?')}  {r.get('continent','?'):<20s}  {'█' * int(pct/3):<20s}  {pct:.1f}%")
+
+    @staticmethod
+    def _fmt_generic(r):
+        print("  " + "  |  ".join(map(lambda kv: f"{kv[0]}: {kv[1]}", r.items())))
 
 
 class GraphicsChartWriter:
     def __init__(self, show_plot: bool = False, save_path: str | None = None) -> None:
-        pass
+        self._show = show_plot
+        self._save = save_path
 
     def write(self, records: list[dict]) -> None:
-        pass
+        if not records:
+            log.warning("GraphicsChartWriter: empty records — skipping.")
+            return
+        chart_type = _meta(records, "_chart_type", "default")
+        title      = _meta(records, "_title", "GDP Analysis")
+        renderer   = _CHART_DISPATCH.get(chart_type, _CHART_DISPATCH["default"])
+
+        rank = _meta(records, "rank_label", "")
+        save_key = (
+            "top_10_gdp"    if (chart_type == "top_bottom_gdp" and rank == "TOP")    else
+            "bottom_10_gdp" if (chart_type == "top_bottom_gdp" and rank == "BOTTOM") else
+            chart_type
+        )
+
+        try:
+            fig, ax = plt.subplots(figsize=(14, 7))
+            _apply_theme(fig)
+            ax.set_facecolor(_P["surface"])
+            renderer(records, title, ax)
+            self._finalise(fig, save_key)
+        except Exception as exc:
+            plt.close("all")
+            raise RuntimeError(f"Chart render failed for '{chart_type}': {exc}") from exc
+
+    def _finalise(self, fig, chart_type: str) -> None:
+        fig.tight_layout(pad=2.0)
+        if self._save:
+            path = self._save_path(chart_type)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(path, dpi=150, facecolor=fig.get_facecolor(), bbox_inches="tight")
+            log.info("Saved → %s", path)
+        if self._show:
+            plt.show()
+        plt.close(fig)
+
+    def _save_path(self, chart_type: str) -> Path:
+        base = Path(self._save)
+        return base.parent / f"{base.stem}_{chart_type}{base.suffix}"
