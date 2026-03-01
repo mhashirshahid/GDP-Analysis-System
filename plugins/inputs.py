@@ -74,21 +74,56 @@ def _parse_csv(text: str) -> list[dict]:
 
 class JSONReader:
     def __init__(self, filepath: str, service: Any) -> None:
-        pass
+        self._path    = Path(filepath)
+        self._service = service
+        log.info("JSONReader — source: %s", self._path)
 
     def run(self) -> None:
-        pass
+        try:
+            records = self._load()
+        except Exception as exc:
+            raise RuntimeError(f"JSONReader failed on '{self._path}': {exc}") from exc
+        if not records:
+            log.warning("JSONReader: 0 usable records from '%s'.", self._path)
+            return
+        log.info("JSONReader pushing %d records into pipeline.", len(records))
+        self._service.execute(records)
 
     def _load(self) -> list[dict]:
-        pass
+        pipeline = [
+            lambda p: p.read_text(encoding="utf-8"),
+            _patch_json,
+            _parse_json,
+            partial(map, _normalize_record),
+            list,
+            _validate_records,
+        ]
+        return reduce(lambda acc, fn: fn(acc), pipeline, self._path)
 
 
 class CSVReader:
     def __init__(self, filepath: str, service: Any) -> None:
-        pass
+        self._path    = Path(filepath)
+        self._service = service
+        log.info("CSVReader — source: %s", self._path)
 
     def run(self) -> None:
-        pass
+        try:
+            records = self._load()
+        except Exception as exc:
+            raise RuntimeError(f"CSVReader failed on '{self._path}': {exc}") from exc
+        if not records:
+            log.warning("CSVReader: 0 usable records from '%s'.", self._path)
+            return
+        log.info("CSVReader pushing %d records into pipeline.", len(records))
+        self._service.execute(records)
 
     def _load(self) -> list[dict]:
-        pass
+        pipeline = [
+            lambda p: p.read_text(encoding="utf-8-sig"),
+            _parse_csv,
+            partial(map, _normalize_record),
+            list,
+            _validate_records,
+        ]
+        return reduce(lambda acc, fn: fn(acc), pipeline, self._path)
