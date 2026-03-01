@@ -108,5 +108,69 @@ class TransformationEngine:
 
         return list(filter(None, map(calc_growth, countries)))
     
+    def _avg_by_continent(self, data: List[dict]) -> List[dict]:
+        in_range = list(filter(
+        lambda row: row.get(str(self.year_start)) is not None or
+                    row.get(str(self.year_end)) is not None,
+        data
+        ))
+
+        continents = list(set(map(
+        lambda row: row.get('Continent'),
+        in_range
+        )))
+
+        def continent_avg(continent):
+            rows = list(filter(
+            lambda r: r.get('Continent') == continent,
+            in_range
+        ))
+
+            years = range(self.year_start, self.year_end + 1)
+
+            all_gdp_values = list(filter(
+            lambda v: v is not None,
+            [row.get(str(yr)) for row in rows for yr in years]
+            ))
+
+            if not all_gdp_values:
+                return None
+
+            avg = sum(all_gdp_values) / len(all_gdp_values)
+
+            return {
+            '_chart_type': 'avg_gdp_by_continent',
+            '_title': f'Average GDP by Continent ({self.year_start}–{self.year_end})',
+            'continent': continent,
+            'avg_gdp':   round(avg, 2)
+            }
+
+        return list(filter(None, map(continent_avg, continents)))
+    
+    def _global_trend(self, data: List[dict]) -> List[dict]:
+        years = list(range(self.year_start, self.year_end + 1))
+
+        def year_total(year):
+            gdp_values = list(filter(
+            lambda v: v is not None,
+            map(lambda row: row.get(str(year)), data)
+            ))
+
+            if not gdp_values:
+                return None
+
+            total = sum(gdp_values)
+
+            return {
+            '_chart_type': 'global_gdp_trend',
+            '_title': f'Total Global GDP Trend ({self.year_start}–{self.year_end})',
+            'year':      year,
+            'total_gdp': round(total, 2)
+            }
+
+        return list(filter(None, map(year_total, years)))
+    
+    
+    
     
     
