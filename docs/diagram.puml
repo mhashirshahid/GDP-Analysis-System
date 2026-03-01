@@ -1,0 +1,105 @@
+@startuml GDP_Analysis_System
+
+skinparam backgroundColor #0d1117
+skinparam classBackgroundColor #161b22
+skinparam classBorderColor #30363d
+skinparam classArrowColor #58a6ff
+skinparam classFontColor #e6edf3
+skinparam packageBackgroundColor #1c2128
+skinparam packageBorderColor #30363d
+
+title GDP Analysis System — Dependency Inversion Architecture
+
+package "core" {
+    interface DataSink {
+        + write(records: List[dict]) : None
+    }
+
+    interface PipelineService {
+        + execute(raw_data: List[Any]) : None
+    }
+
+    class TransformationEngine {
+        - sink: DataSink
+        - continent: str
+        - year: int
+        - year_start: int
+        - year_end: int
+        - decline_years: int
+        + __init__(sink: DataSink, config: dict)
+        + execute(raw_data: List[Any]) : None
+        - _clean(data) : List[dict]
+        - _top_10(data) : List[dict]
+        - _bottom_10(data) : List[dict]
+        - _growth_rates(data) : List[dict]
+        - _avg_by_continent(data) : List[dict]
+        - _global_trend(data) : List[dict]
+        - _fastest_growing(data) : List[dict]
+        - _consistent_decline(data) : List[dict]
+        - _continent_contribution(data) : List[dict]
+    }
+
+    TransformationEngine ..|> PipelineService : implements
+    TransformationEngine --> DataSink : depends on
+}
+
+package "plugins" {
+    class CSVReader {
+        - _path: Path
+        - _service: PipelineService
+        + __init__(filepath: str, service: PipelineService)
+        + run() : None
+        - _load() : List[dict]
+    }
+
+    class JSONReader {
+        - _path: Path
+        - _service: PipelineService
+        + __init__(filepath: str, service: PipelineService)
+        + run() : None
+        - _load() : List[dict]
+    }
+
+    class ConsoleWriter {
+        + write(records: List[dict]) : None
+    }
+
+    class GraphicsChartWriter {
+        - _show: bool
+        - _save: str
+        + __init__(show_plot: bool, save_path: str)
+        + write(records: List[dict]) : None
+    }
+
+    CSVReader ..|> PipelineService : satisfies
+    JSONReader ..|> PipelineService : satisfies
+    ConsoleWriter ..|> DataSink : satisfies
+    GraphicsChartWriter ..|> DataSink : satisfies
+}
+
+package "main" {
+    class Bootstrap {
+        + INPUT_DRIVERS: dict
+        + OUTPUT_DRIVERS: dict
+        + bootstrap() : None
+    }
+}
+
+Bootstrap --> CSVReader : instantiates
+Bootstrap --> JSONReader : instantiates
+Bootstrap --> ConsoleWriter : instantiates
+Bootstrap --> GraphicsChartWriter : instantiates
+Bootstrap --> TransformationEngine : instantiates
+
+note right of core
+  Core owns all Protocols.
+  Nothing points outward
+  from Core.
+end note
+
+note bottom of plugins
+  Plugins depend on Core contracts.
+  Core never imports plugins.
+end note
+
+@enduml
