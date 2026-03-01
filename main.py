@@ -145,6 +145,15 @@ _RULES = [
      lambda c: not isinstance(c.get("data_file"), str) or
                not Path(c.get("data_file", "")).exists() or
                os.access(c.get("data_file"), os.R_OK)),
+
+    (lambda c: f"Driver/file mismatch: input_driver is '{c.get('input_driver')}' but "
+               f"data_file '{c.get('data_file')}' has extension "
+               f"'{Path(str(c.get('data_file',''))).suffix}'. "
+               f"Expected a .{c.get('input_driver','')} file (e.g. data/gdp_data.{c.get('input_driver','')}).",
+     lambda c: not isinstance(c.get("input_driver"), str) or
+               not isinstance(c.get("data_file"), str) or
+               c.get("input_driver") not in INPUT_DRIVERS or
+               Path(c.get("data_file", "x.x")).suffix.lstrip(".").lower() == c.get("input_driver", "")),
 ]
 
 
