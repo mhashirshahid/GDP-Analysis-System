@@ -170,6 +170,115 @@ class TransformationEngine:
 
         return list(filter(None, map(year_total, years)))
     
+    def _fastest_growing(self, data: List[dict]) -> List[dict]:
+        continents = list(set(map(
+        lambda row: row.get('Continent'),
+        data
+        )))
+
+        def continent_growth(continent):
+            rows = list(filter(
+            lambda r: r.get('Continent') == continent,
+            data
+            ))
+
+            gdp_start = list(filter(
+            lambda v: v is not None,
+            map(lambda r: r.get(str(self.year_start)), rows)
+            ))
+
+            gdp_end = list(filter(
+            lambda v: v is not None,
+            map(lambda r: r.get(str(self.year_end)), rows)
+            ))
+
+            if not gdp_start or not gdp_end:
+                return None
+
+            total_start = sum(gdp_start)
+            total_end   = sum(gdp_end)
+
+            if total_start == 0:
+                return None
+
+            growth_pct = ((total_end - total_start) / total_start) * 100
+
+            return {
+            'continent':  continent,
+            'growth_pct': round(growth_pct, 2),
+            'is_fastest': False
+            }
+
+        results = list(filter(None, map(continent_growth, continents)))
+
+        if not results:
+            return []
+
+        fastest = max(results, key=lambda x: x['growth_pct'])
+
+        tagged = list(map(
+        lambda r: {**r,
+                   '_chart_type': 'fastest_continent',
+                   '_title': f'Fastest Growing Continent ({self.year_start}–{self.year_end})',
+                   'is_fastest': r['continent'] == fastest['continent']},
+        results
+        ))
+
+        return tagged
+
+    def _consistent_decline(self, data: List[dict]) -> List[dict]:
+        countries = list(set(map(
+        lambda row: row.get('Country Name'),
+        data
+        )))
+
+        def check_decline(country):
+            rows = list(filter(
+            lambda r: r.get('Country Name') == country,
+            data
+        ))
+
+            if not rows:
+                return None
+
+            years = list(range(self.year_end - self.decline_years + 1,
+                           self.year_end + 1))
+
+            gdp_sequence = list(filter(
+            lambda pair: pair[1] is not None,
+            map(lambda yr: (yr, rows[0].get(str(yr))), years)
+            ))
+
+            if len(gdp_sequence) < self.decline_years:
+                return None
+
+            gdp_values = list(map(lambda pair: pair[1], gdp_sequence))
+
+            pairs = list(zip(gdp_values, gdp_values[1:]))
+
+            all_declining = all(map(
+            lambda pair: pair[1] < pair[0],
+            pairs
+            ))
+
+            if not all_declining:
+                return None
+
+            first_gdp = gdp_values[0]
+            last_gdp  = gdp_values[-1]
+            decline_pct = ((last_gdp - first_gdp) / first_gdp) * 100
+
+            return {
+            '_chart_type': 'consistent_decline',
+            '_title': f'Countries with Consistent GDP Decline (Last {self.decline_years} Years)',
+            'country':       country,
+            'continent':     rows[0].get('Continent'),
+            'decline_pct':   round(decline_pct, 2),
+            'decline_years': self.decline_years
+            }
+
+        return list(filter(None, map(check_decline, countries)))
+
     
     
     
