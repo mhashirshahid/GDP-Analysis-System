@@ -1,14 +1,20 @@
 {
-  "app_mode": "gui",
-  "data_file": "data/gdp_data.csv",
+  "input_driver": "json",
+  "output_driver": "chart",
+
+  "data_file": "data/gdp_with_continent_filled.json",
+
   "filters": {
-    "region": "Asia",
-    "year": 2018,
-    "country": null
+    "continent": "Asia",
+    "year": 2019,
+    "year_range": [2010, 2023],
+    "decline_years": 5
   },
-  "operation": "sum", 
+
+  "operation": "sum",
+
   "plot": {
     "show_plot": true,
-    "save_path": "outputs/dashboard.png"  
+    "save_path": "outputs/dashboard.png"
   }
 }
