@@ -4,7 +4,7 @@ A configuration-driven, modular GDP data analysis tool built with Python. Phase 
 
 ## Project Overview
 
-The system reads World Bank GDP data (CSV or JSON), runs eight analytical computations, and outputs results either to the terminal or as saved chart images — all controlled entirely through `config.json` without touching any source code.
+The system reads World Bank GDP data (CSV or JSON), runs eight analytical computations, and outputs results to the terminal, as saved chart images, or through an interactive GUI dashboard — all controlled entirely through `config.json` without touching any source code.
 
 ## Project Structure
 
@@ -14,6 +14,7 @@ GDP-Analysis-System/
 ├── core/
 │   ├── __init__.py
 │   ├── contracts.py          # DataSink and PipelineService Protocols
+│   ├── config_validator.py   # Config loading, validation rules, ConfigError
 │   └── engine.py             # TransformationEngine — all 8 analytical outputs
 │
 ├── data/
@@ -24,7 +25,10 @@ GDP-Analysis-System/
 │   ├── architecture.png      # Module dependency diagram
 │   └── diagram.puml          # PlantUML source
 │
-├── outputs/                  # Generated chart images
+├── GUI/
+│   └── dashboard.py          # Tkinter GUI dashboard with sidebar navigation
+│
+├── outputs/                  # Generated chart images (auto-created on run)
 │   ├── dashboard_top_10_gdp.png
 │   ├── dashboard_bottom_10_gdp.png
 │   ├── dashboard_gdp_growth_rate.png
@@ -37,7 +41,7 @@ GDP-Analysis-System/
 ├── plugins/
 │   ├── __init__.py
 │   ├── inputs.py             # CSVReader, JSONReader
-│   └── outputs.py            # ConsoleWriter, GraphicsChartWriter
+│   └── outputs.py            # ConsoleWriter, GraphicsChartWriter, GUISink
 │
 ├── config.json               # Runtime configuration
 ├── main.py                   # Orchestrator / Bootstrap
@@ -117,10 +121,10 @@ All runtime behaviour is controlled through `config.json`. No source code change
 
 ```json
 {
-  "input_driver": "csv",
-  "output_driver": "chart",
+  "input_driver": "json",
+  "output_driver": "gui",
 
-  "data_file": "data/gdp_with_continent_filled.csv",
+  "data_file": "data/gdp_with_continent_filled.json",
 
   "filters": {
     "continent": "Asia",
@@ -138,17 +142,17 @@ All runtime behaviour is controlled through `config.json`. No source code change
 
 ### Configuration Parameters
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `input_driver` | `"csv"` \| `"json"` | Which reader to use |
-| `output_driver` | `"console"` \| `"chart"` | Which writer to use |
-| `data_file` | string | Path to dataset, relative to project root |
-| `filters.continent` | string | Continent to analyse (e.g. `"Asia"`, `"Europe"`) |
-| `filters.year` | integer | Single year for Top/Bottom 10 (e.g. `2019`) |
-| `filters.year_range` | `[start, end]` | Date range for trend analyses |
-| `filters.decline_years` | integer | Consecutive years of decline to flag |
-| `plot.show_plot` | boolean | Display chart window interactively |
-| `plot.save_path` | string | File path for saved charts (`.png`, `.jpg`, `.pdf`) |
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `input_driver` | `"csv"` \| `"json"` | ✅ | Which reader to use |
+| `output_driver` | `"console"` \| `"chart"` \| `"gui"` | ✅ | Which writer to use |
+| `data_file` | string | ✅ | Path to dataset, relative to project root |
+| `filters.continent` | string | ✅ | Continent to analyse (e.g. `"Asia"`, `"Europe"`) |
+| `filters.year` | integer | ✅ | Single year for Top/Bottom 10 (e.g. `2019`) |
+| `filters.year_range` | `[start, end]` | ✅ | Date range for trend analyses |
+| `filters.decline_years` | integer | ✅ | Consecutive years of decline to flag |
+| `plot.show_plot` | boolean | only for `chart` | Display chart window interactively |
+| `plot.save_path` | string | only for `chart` | File path for saved charts (`.png`, `.jpg`, `.pdf`) |
 
 ### Valid Values
 
@@ -158,6 +162,23 @@ All runtime behaviour is controlled through `config.json`. No source code change
 - `decline_years` must be a positive integer and cannot exceed the `year_range` span
 
 ## Usage
+
+### Interactive GUI dashboard
+
+```json
+"output_driver": "gui"
+```
+
+```bash
+python main.py
+```
+
+Opens a full-screen dashboard with a sidebar listing all 8 charts. Click any item in the sidebar or use keyboard shortcuts to navigate.
+
+**Keyboard shortcuts:**
+- `←` / `→` — previous / next chart
+- `1` – `8` — jump directly to a chart
+- `Esc` — close
 
 ### Print results to terminal
 
@@ -184,11 +205,16 @@ python main.py
 ```
 
 Each of the 8 outputs is saved as a separate file, automatically suffixed:
+
 ```
 outputs/dashboard_top_10_gdp.png
 outputs/dashboard_bottom_10_gdp.png
 outputs/dashboard_gdp_growth_rate.png
-... etc.
+outputs/dashboard_avg_gdp_by_continent.png
+outputs/dashboard_global_gdp_trend.png
+outputs/dashboard_fastest_continent.png
+outputs/dashboard_consistent_decline.png
+outputs/dashboard_continent_contribution.png
 ```
 
 ### Debugging
@@ -208,12 +234,33 @@ Shows the full traceback instead of the clean error message.
 
 No other changes needed.
 
+## Chart Personalities
+
+Each chart has its own distinct visual theme:
+
+| Chart | Theme | Signature |
+|-------|-------|-----------|
+| 🏆 Top 10 by GDP | Hall of Fame | Gold-to-bronze gradient bars, warm amber background |
+| 🧊 Bottom 10 by GDP | The Cellar | Ice-blue gradient fading to deep navy |
+| 🏎 GDP Growth Rate | The Race | Vivid green/red diverging bars with bold zero-line |
+| 🌍 Average GDP by Continent | Around the World | Each continent rendered in its own geographic colour |
+| 🌌 Global GDP Trend | Cosmic | Deep space background with triple-layered neon cyan glow |
+| 🔥 Fastest Growing Continent | Champion's Podium | Winner blazes orange-red, all others charcoal |
+| ⚠ Consistent Decline | Red Alert | Blood-red intensity gradient with full warning border |
+| 🎼 Continent Share | Symphony | Festival-palette stacked area on deep midnight background |
+
 ## Module Responsibilities
 
 ### `core/contracts.py`
 Defines the two structural interfaces (Protocols) that govern all data flow:
 - `DataSink`: requires `write(records: List[dict]) -> None` — implemented by output plugins
 - `PipelineService`: requires `execute(raw_data: List[Any]) -> None` — implemented by the engine
+
+### `core/config_validator.py`
+Owns all configuration concerns so `main.py` stays clean:
+- `ConfigError` — the single exception type raised for any config problem
+- `load(path)` — reads and parses `config.json`, catching filesystem and JSON errors before any rule runs
+- `validate(cfg)` — runs 30+ rules covering required keys, types, value ranges, cross-field consistency, filesystem access, and driver/extension agreement. All failures are collected and reported together in one message.
 
 ### `core/engine.py`
 The `TransformationEngine` class. Receives a `DataSink` at construction (injected by `main.py`) and a config dict. On `execute()`, runs all 8 analytical computations using `map`, `filter`, and `functools.reduce`, then calls `sink.write()` once per output.
@@ -226,10 +273,14 @@ Both push cleaned records into the injected service via `service.execute()`.
 
 ### `plugins/outputs.py`
 - `ConsoleWriter`: prints each result batch to the terminal in a clean columnar layout, dispatched by `_chart_type`
-- `GraphicsChartWriter`: renders each result batch as a dark-themed matplotlib chart and saves to disk; top 10 and bottom 10 are saved as separate files
+- `GraphicsChartWriter`: renders each result batch as a themed matplotlib chart and saves to disk; top 10 and bottom 10 are saved as separate files
+- `GUISink`: collects all rendered figures in memory, then hands them to `GUIDashboard` via `launch()`
+
+### `GUI/dashboard.py`
+`GUIDashboard` — a `tk.Tk` subclass that displays all 8 charts in a navigable window. Features a persistent sidebar with numbered chart entries, active-state highlighting, hover effects, keyboard navigation, and direct jump-to-chart via number keys.
 
 ### `main.py`
-The orchestrator. Loads and validates `config.json` (25 rules covering structure, types, value ranges, and filesystem access), then wires the components together via Dependency Injection:
+The orchestrator. Imports `load` and `validate` from `core/config_validator`, wires all components together via Dependency Injection, and handles process exit codes for every error category. A `_show_error_window()` helper surfaces `ConfigError` and `RuntimeError` in a native OS dialog in addition to stderr, so errors are visible even when launching without a terminal.
 
 ```
 Sink → Engine(sink) → Reader(engine) → reader.run()
@@ -239,16 +290,36 @@ Factory dictionaries map driver name strings to concrete classes — adding a ne
 
 ## Config Validation
 
-`main.py` validates every field before any component is instantiated. All failures are collected and reported together:
+`core/config_validator.py` validates every field before any component is instantiated. All failures are collected and reported together:
 
 ```
 [CONFIG ERROR]
 config.json validation failed:
+  ✗  filters.continent is required.
   ✗  filters.year 2000 is outside year_range [2010, 2023].
-  ✗  filters.decline_years (99) must not exceed year_range span (13).
+  ✗  filters.decline_years (99) cannot exceed year_range span (13).
 ```
 
-Validated cases include: missing keys, wrong types, unknown driver names, invalid continent, year out of supported range, year outside year_range, year_range start ≥ end, decline_years exceeding span, bad plot extension, driver/file extension mismatch, file not found, and no read permission.
+Every validated case:
+
+| Category | What is checked |
+|----------|----------------|
+| Missing keys | All four top-level keys + all four `filters` sub-keys are required |
+| Wrong types | Strings, plain integers (booleans rejected), lists of integers, booleans |
+| Null values | Any required field set to `null` is caught |
+| Empty strings | `""` and whitespace-only strings rejected for `continent` and `data_file` |
+| Unknown drivers | `input_driver` and `output_driver` checked against known values |
+| Invalid continent | Checked against the seven valid continent names |
+| Year out of range | `year` and both `year_range` values must be 1960–2024 |
+| Year range order | `year_range[0]` must be strictly less than `year_range[1]` |
+| Year outside range | `year` must fall within `year_range` |
+| Decline years span | `decline_years` cannot exceed the `year_range` span |
+| Plot block | `show_plot` must be boolean; `save_path` must be a valid non-empty string or null |
+| Save path extension | Only `.png`, `.jpg`, `.jpeg`, `.pdf` are accepted |
+| Chart requires plot | `output_driver: "chart"` without a `plot` block is caught |
+| File not found | `data_file` path is verified to exist and be a file, not a directory |
+| File permissions | Read access on `data_file` is verified |
+| Driver/extension match | `input_driver` must match the file extension of `data_file` |
 
 ## Design Principles
 
@@ -264,10 +335,16 @@ No `for` or `while` loops anywhere in the codebase — including list/dict compr
 ### Configuration-Driven
 Zero hardcoded filters, paths, or driver names outside `config.json`. Changing the continent, year range, input format, or output format requires only editing the config file.
 
+### Separation of Concerns
+Config validation lives entirely in `core/config_validator.py`. Chart rendering themes live entirely in `plugins/outputs.py`. GUI layout lives entirely in `GUI/dashboard.py`. `main.py` contains only orchestration.
+
 ## Troubleshooting
 
 **Issue**: `[CONFIG ERROR] Driver/file mismatch`
 - **Solution**: Make sure `input_driver` and the extension of `data_file` match — `"csv"` with a `.csv` file, `"json"` with a `.json` file.
+
+**Issue**: `[CONFIG ERROR] filters.continent is required`
+- **Solution**: All four `filters` sub-keys (`continent`, `year`, `year_range`, `decline_years`) are mandatory.
 
 **Issue**: Empty chart or `No data` message
 - **Solution**: The selected `continent` or `year` has no data in the dataset. Try `"Asia"` with `year: 2019`.
@@ -277,10 +354,3 @@ Zero hardcoded filters, paths, or driver names outside `config.json`. Changing t
 
 **Issue**: `ModuleNotFoundError: No module named 'matplotlib'`
 - **Solution**: Run `pip install matplotlib`.
-
-## Contributors
-
-Developed in pairs as part of SDA Project Phase 2. See Git commit history for individual contributions.
-
-- **Partner A** — Core & Architecture: `contracts.py`, `engine.py`, PlantUML diagram
-- **Partner B** — Plugins & Orchestration: `inputs.py`, `outputs.py`, `main.py`
