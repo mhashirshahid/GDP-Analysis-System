@@ -10,9 +10,7 @@
     "year_range": [2010, 2023],
     "decline_years": 5
   },
-
-  "operation": "sum",
-
+  
   "plot": {
     "show_plot": true,
     "save_path": "outputs/dashboard.png"
