@@ -198,6 +198,7 @@ def _chart_top_bottom_gdp(records: list[dict], title: str, ax) -> None:
     ax.set_xlabel("GDP (USD)", color=t["subtext"], fontsize=9)
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: _fmt_gdp(v)))
     ax.grid(True, axis="x", alpha=0.2)
+    ax.tick_params(axis="y", colors=t["subtext"])
     ax.invert_yaxis()
     _watermark(ax, "GDP", t)
 
