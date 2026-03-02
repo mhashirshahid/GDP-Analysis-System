@@ -22,6 +22,19 @@ OUTPUT_DRIVERS = {"console": ConsoleWriter, "chart": GraphicsChartWriter, "gui":
 _CONFIG_PATH = Path("config.json")
 
 
+def _show_error_window(title: str, message: str) -> None:
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        messagebox.showerror(title, message, parent=root)
+        root.destroy()
+    except Exception:
+        pass
+
+
 def _build_sink(cfg: dict):
     key  = cfg["output_driver"]
     plot = cfg.get("plot", {})
@@ -58,19 +71,25 @@ def main() -> None:
     try:
         bootstrap()
     except ConfigError as exc:
-        print(f"\n[CONFIG ERROR]\n{exc}\n", file=sys.stderr)
+        msg = str(exc)
+        print(f"\n[CONFIG ERROR]\n{msg}\n", file=sys.stderr)
+        _show_error_window("Config Error — GDP Analysis System", msg)
         if debug: raise
         sys.exit(1)
     except RuntimeError as exc:
-        print(f"\n[RUNTIME ERROR]\n{exc}\n", file=sys.stderr)
+        msg = str(exc)
+        print(f"\n[RUNTIME ERROR]\n{msg}\n", file=sys.stderr)
+        _show_error_window("Runtime Error — GDP Analysis System", msg)
         if debug: raise
         sys.exit(2)
     except KeyboardInterrupt:
         print("\n[INTERRUPTED]", file=sys.stderr)
         sys.exit(130)
     except Exception as exc:
-        print(f"\n[UNEXPECTED ERROR] {type(exc).__name__}: {exc}", file=sys.stderr)
+        msg = f"{type(exc).__name__}: {exc}"
+        print(f"\n[UNEXPECTED ERROR] {msg}", file=sys.stderr)
         print("Run with --debug for full traceback.", file=sys.stderr)
+        _show_error_window("Unexpected Error — GDP Analysis System", msg)
         if debug: raise
         sys.exit(3)
 
