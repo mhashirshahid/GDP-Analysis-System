@@ -179,8 +179,49 @@ _RULES: list[tuple] = [
 
 
 def load(path: Path) -> dict:
-    pass
+    if not path.exists():
+        raise ConfigError(
+            f"config.json not found at: {path.resolve()}\n"
+            f"  Make sure you are running from the project root directory."
+        )
+    if path.is_dir():
+        raise ConfigError(f"Expected a file but found a directory at: {path.resolve()}")
+    if not os.access(path, os.R_OK):
+        raise ConfigError(f"No read permission for config.json at: {path.resolve()}")
+
+    raw = path.read_text(encoding="utf-8").strip()
+
+    if not raw:
+        raise ConfigError("config.json is empty.")
+
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ConfigError(
+            f"config.json contains invalid JSON.\n"
+            f"  Line {exc.lineno}, column {exc.colno}: {exc.msg}\n"
+            f"  Tip: validate at jsonlint.com."
+        ) from exc
+
+    if not isinstance(result, dict):
+        raise ConfigError(
+            f"config.json must be a JSON object {{}} at the top level, "
+            f"got {type(result).__name__}."
+        )
+    return result
 
 
 def validate(cfg: dict) -> dict:
-    pass
+    def _check(rule):
+        msg_or_fn, pred = rule
+        try:
+            passed = pred(cfg)
+        except Exception:
+            passed = False
+        return None if passed else (msg_or_fn(cfg) if callable(msg_or_fn) else msg_or_fn)
+
+    failures = list(filter(None, map(_check, _RULES)))
+    if failures:
+        detail = reduce(lambda acc, m: acc + f"\n  ✗  {m}", failures, "")
+        raise ConfigError(f"config.json validation failed:{detail}")
+    return cfg
