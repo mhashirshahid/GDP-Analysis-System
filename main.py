@@ -11,6 +11,7 @@ from typing import Any
 from core.engine import TransformationEngine
 from plugins.inputs  import CSVReader, JSONReader
 from plugins.outputs import ConsoleWriter, GraphicsChartWriter
+from plugins.outputs import ConsoleWriter, GraphicsChartWriter, GUISink
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +27,7 @@ INPUT_DRIVERS: dict[str, type] = {
 OUTPUT_DRIVERS: dict[str, type] = {
     "console": ConsoleWriter,
     "chart":   GraphicsChartWriter,
+    "gui":     GUISink,
 }
 
 _CONFIG_PATH   = Path("config.json")
@@ -203,18 +205,17 @@ def _validate_config(cfg: dict) -> dict:
         raise ConfigError(f"config.json validation failed:{detail}")
     return cfg
 
-
 def _build_sink(cfg: dict) -> Any:
     key = cfg["output_driver"]
     cls = OUTPUT_DRIVERS[key]
     plot = cfg.get("plot", {})
-    kwargs = {"chart": {"show_plot": plot.get("show_plot", False),
-                        "save_path": plot.get("save_path", None)},
-              "console": {}}.get(key, {})
-    sink = cls(**kwargs)
-    log.info("Sink: %s", type(sink).__name__)
-    return sink
-
+    kwargs = {
+        "chart":   {"show_plot": plot.get("show_plot", False),
+                    "save_path": plot.get("save_path", None)},
+        "console": {},
+        "gui":     {},
+    }.get(key, {})
+    return cls(**kwargs)
 
 def _build_engine(cfg: dict, sink: Any) -> Any:
     engine = TransformationEngine(sink=sink, config=cfg)
@@ -239,11 +240,9 @@ def bootstrap() -> None:
         reader = _build_reader(cfg, engine)
         return {**cfg, "_sink": sink, "_engine": engine, "_reader": reader}
     def _run(ctx):
-        log.info("%s → Engine → %s | filters: %s",
-                 type(ctx["_reader"]).__name__,
-                 type(ctx["_sink"]).__name__,
-                 ctx.get("filters", {}))
         ctx["_reader"].run()
+        if isinstance(ctx["_sink"], GUISink):
+            ctx["_sink"].launch()
         return ctx
 
     reduce(lambda acc, fn: fn(acc), [_load, _validate, _wire, _run], None)

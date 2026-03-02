@@ -1,6 +1,6 @@
 {
   "input_driver": "json",
-  "output_driver": "chart",
+  "output_driver": "gui",
 
   "data_file": "data/gdp_with_continent_filled.json",
 

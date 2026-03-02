@@ -31,7 +31,32 @@ _COLORS = ["#58a6ff","#3fb950","#f85149","#d29922","#bc8cff","#79c0ff","#56d364"
 
 _SEP = "─" * 72
 
+class GUISink:
+    #Collects figures and launches the Tkinter dashboard.
 
+    def __init__(self) -> None:
+        self._figures = []   #[(title, Figure)]
+
+    def write(self, records: list[dict]) -> None:
+        if not records:
+            return
+        chart_type = _meta(records, "_chart_type", "default")
+        title      = _meta(records, "_title", "GDP Analysis")
+        renderer   = _CHART_DISPATCH.get(chart_type, _CHART_DISPATCH["default"])
+
+        fig, ax = plt.subplots(figsize=(14, 7))
+        _apply_theme(fig)
+        ax.set_facecolor(_P["surface"])
+        renderer(records, title, ax)
+        fig.tight_layout(pad=2.0)
+
+        self._figures.append((title, fig))
+
+    def launch(self) -> None:
+        """Call this after all write() calls to open the dashboard."""
+        from GUI.dashboard import GUIDashboard
+        app = GUIDashboard(self._figures)
+        app.mainloop()
 def _apply_theme(fig: Figure) -> Figure:
     rc = {
         "figure.facecolor": _P["bg"],  "axes.facecolor":  _P["surface"],
